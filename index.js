@@ -1,11 +1,32 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 5000;
 //middleware
+// const corsConfig = {
+//   origin: ['http://localhost:5173/','https://react-price-list-bc23e.web.app/'],
+//   credentials: true,
+//   methods: ["GET", "POST", "PUT", "DELETE"],
+//   allowedHeaders: ['Content-Type'],
+// };
 app.use(cors());
+// app.options("", cors(corsConfig));
+
+
+
+// let corsOptions = { 
+//   origin: ['http://localhost:5173/','https://react-price-list-bc23e.web.app/']
+// }; 
+
+// // Using cors as a middleware 
+// app.get('/gfg-articles',cors(corsOptions), 
+//   (req,res) => res.json('gfg-articles')) 
+
+
 app.use(express.json());
+
+
 
 
 const uri =
@@ -23,31 +44,55 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const productsCollection = client.db("productsDB").collection("products");
 
     app.post("/addProduct", async (req, res) => {
       const newProduct = req.body;
-      console.log(newProduct);
       const result = await productsCollection.insertOne(newProduct);
-    
       res.send(result);
     });
 
-    app.get("/products",async(req,res)=>{
-      const cursor = productsCollection.find()
-      const result = await cursor.toArray()
-      console.log('kk',result)
+    app.get("/products", async (req, res) => {
+      const cursor = productsCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.delete("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await productsCollection.deleteOne(query);
+      console.log(result);
+      res.send(result);
+    });
+
+    app.get("/products/:id",async(req,res)=>{
+      const id = req.params.id 
+      const query = {_id: new ObjectId(id)}
+      const result = await productsCollection.findOne(query)
       res.send(result)
     })
 
-    app.delete('/products/:id',async(req,res)=>{
+    app.put("/products/:id",async(req,res)=>{
       const id = req.params.id
-      const query = {_id: new ObjectId(id)}
-      const result = await productsCollection.deleteOne(query)
+      const product = req.body
+
+      const filter = {_id: new ObjectId(id)}
+      const options = {upsert:true}
+      const updatedProduct = {
+        $set:{
+          productName: product.productName,
+          productDescription: product.productDescription,
+          productCategory: product.productCategory,
+          productPrice: product.productPrice,
+        }
+      }
+      const result = await productsCollection.updateOne(filter,updatedProduct,options)
       res.send(result)
-    }) 
+      console.log(product)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
